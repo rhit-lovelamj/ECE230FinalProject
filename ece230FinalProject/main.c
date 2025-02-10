@@ -3,6 +3,7 @@
 
 /**
  * main.c
+ * Authors: Srishti Kamra and Mandolyn Loveland
  */
 void main(void)
 {
