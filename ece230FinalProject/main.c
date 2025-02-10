@@ -4,11 +4,7 @@
 /**
  * main.c
  * Authors: Srishti Kamra and Mandolyn Loveland
-<<<<<<< HEAD
- * xxxx
-=======
  * xxxxxxx
->>>>>>> branch 'main' of https://github.com/rhit-lovelamj/ECE230FinalProject.git
  */
 void main(void)
 {
