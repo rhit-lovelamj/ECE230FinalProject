@@ -4,6 +4,7 @@
 /**
  * main.c
  * Authors: Srishti Kamra and Mandolyn Loveland
+ * xxxx
  */
 void main(void)
 {
