@@ -11,10 +11,18 @@
 #define LM35_PIN    BIT5
 
 #define SAMPLES 10  // Number of samples per second
+#define INTERVAL 2.5  // Display every 2.5 seconds
+#define TOTAL_READINGS (SAMPLES * INTERVAL)  // Total samples to average
+
+volatile float temperature_buffer[TOTAL_READINGS];  // Buffer to store readings
+volatile int sample_index = 0;  // Circular index
+char DataBuffer[50];
+char ReceivedChar;
+volatile int i;
 
 void ADC_Init(void);
+void TimerA_init(void);
 int Read_Temperature(void);
-int cycles;
 
 
 void ADC14_init(void) {
@@ -36,6 +44,13 @@ float read_temperature(void) {
     return voltage * 100.0;  // Convert to temperature
 }
 
+// Initialize TimerA to generate interrupt every 2.5s
+void TimerA_init(void) {
+    TIMER_A0->CTL = TIMER_A_CTL_TASSEL_2 | TIMER_A_CTL_MC_1 | TIMER_A_CTL_ID_3;  // SMCLK, Up Mode, /8
+    TIMER_A0->CCR[0] = (12000000 / 8) * INTERVAL;  // Set count for 2.5s
+    TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE;  // Enable interrupt
+    NVIC_EnableIRQ(TA0_0_IRQn);  // Enable TimerA interrupt in NVIC
+}
 void main(void) {
     WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;  // Stop watchdog timer
 
@@ -51,35 +66,38 @@ void main(void) {
     ConfigureUART_A2();
     ADC14_init();  // Initialize ADC14
     __enable_irq();
-    char DataBuffer[50];
-    char ReceivedChar;
-    volatile int i;
 
     while (1) {
-        float temp_Sum = 0.0;
         // Read heart rate and SpO2
 //        int heart_rate = MAX30102_ReadHeartRate();
 //        int spo2 = MAX30102_ReadSpO2();
 
 
-        // Take 5 readings at 200ms intervals
-         for (i = 0; i < SAMPLES; i++) {
-             temp_Sum += read_temperature();  // Read and accumulate temperature
-             __delay_cycles(12000*200);  // Wait 200ms before next reading
-         }
-
-         float temp_F = (((temp_Sum / SAMPLES) * 9.0) / 5.0) + 32.0; //convert to F
-
-        // Format and send data
-//        sprintf(buffer, "HR: %d BPM, SpO2: %d%%, Temp: %dC\r\n", heart_rate, spo2, temp);
-
-
-        sprintf(DataBuffer,"Temp: %f F\r\n", temp_F); //print on COM7 terminal
-        SendCharArray_A2(DataBuffer);
-        ReceivedChar=GetChar_A2();
-        SendCharArray_A2(&ReceivedChar);
-
-        __delay_cycles(12000*2500);  // Wait .5 second before next set of readings
+        // Read temperature and store in circular buffer
+        temperature_buffer[sample_index] = read_temperature();
+        sample_index = (sample_index + 1) % TOTAL_READINGS;  // Keep index within range
+        __delay_cycles(12000000 / SAMPLES);  // Delay for 200ms (12MHz clock)
 
     }
 }
+// TimerA ISR (Triggers every 2.5s)
+void TA0_0_IRQHandler(void) {
+    TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;  // Clear interrupt flag
+
+    float temp_sum = 0.0;
+
+    // Compute the average temperature
+    for (i = 0; i < TOTAL_READINGS; i++) {
+        temp_sum += temperature_buffer[i];
+    }
+
+    float avg_temp_C = sum_temperature / TOTAL_READINGS;
+    float avg_temp_F = (avg_temperature_C * 9.0 / 5.0) + 32.0;
+
+    // Send the averaged temperature via UART
+    sprintf(DataBuffer,"Temp: %f F\r\n", avg_temp_F); //print on COM7 terminal
+    SendCharArray_A2(DataBuffer);
+    ReceivedChar=GetChar_A2();
+    SendCharArray_A2(&ReceivedChar);
+}
+
