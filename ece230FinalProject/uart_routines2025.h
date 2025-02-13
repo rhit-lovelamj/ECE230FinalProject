@@ -13,22 +13,10 @@
 
 #include "csHFXT.h"
 
-void ConfigureUART_A0(void);
-void SendCharArray_A0(char *Buffer);
+void ConfigureUART_A2(void);
+void SendCharArray_A2(char *Buffer);
 //get a ASCII character from UART
 //this is a blocking call
-char GetChar_A0(void);
+char GetChar_A2(void);
 
-void ConfigureUART_A1(void);
-void SendCharArray_A1(char *Buffer);
-//get a ASCII character from UART
-//this is a blocking call
-char GetChar_A1(void);
-
-
-void ConfigureUART_A3(void);
-void SendCharArray_A3(char *Buffer);
-//get a ASCII character from UART
-//this is a blocking call
-char GetChar_A3(void);
 

@@ -8,11 +8,13 @@
 #include "uart_routines2025.h"      // UART communication library
 
 #define LM35_PORT   P5
-#define LM35_PIN    BIT5  //
+#define LM35_PIN    BIT5
 
+#define SAMPLES 10  // Number of samples per second
 
 void ADC_Init(void);
 int Read_Temperature(void);
+int cycles;
 
 
 void ADC14_init(void) {
@@ -33,28 +35,51 @@ float read_temperature(void) {
     float voltage = (adc_value * 5.0) / 4095.0;  // Convert to voltage
     return voltage * 100.0;  // Convert to temperature
 }
+
 void main(void) {
-    volatile uint32_t i;
     WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;  // Stop watchdog timer
 
-//    ConfigureUART_A0();
+    /* Configure MCLK/SMCLK source to DCO, with DCO = 12MHz */
+    CS->KEY = CS_KEY_VAL;                   // Unlock CS module for register access
+    CS->CTL0 = 0;                           // Reset tuning parameters
+    CS->CTL0 = CS_CTL0_DCORSEL_3;           // Set DCO to 12MHz (nominal, center of 8-16MHz range)
+    CS->CTL1 = CS_CTL1_SELA_2 |             // Select ACLK = REFO
+            CS_CTL1_SELS_3 |                // SMCLK = DCO
+            CS_CTL1_SELM_3;                 // MCLK = DCO
+    CS->KEY = 0;                            // Lock CS module from unintended accesses
+
+    ConfigureUART_A2();
     ADC14_init();  // Initialize ADC14
     __enable_irq();
+    char DataBuffer[50];
+    char ReceivedChar;
+    volatile int i;
 
     while (1) {
+        float temp_Sum = 0.0;
         // Read heart rate and SpO2
 //        int heart_rate = MAX30102_ReadHeartRate();
 //        int spo2 = MAX30102_ReadSpO2();
 
-        // Read temperature
-        float temp_C = read_temperature();
-        float temp_F = (temp_C * 9.0 / 5.0) + 32.0; //convert to F
+
+        // Take 5 readings at 200ms intervals
+         for (i = 0; i < SAMPLES; i++) {
+             temp_Sum += read_temperature();  // Read and accumulate temperature
+             __delay_cycles(12000*200);  // Wait 200ms before next reading
+         }
+
+         float temp_F = (((temp_Sum / SAMPLES) * 9.0) / 5.0) + 32.0; //convert to F
 
         // Format and send data
 //        sprintf(buffer, "HR: %d BPM, SpO2: %d%%, Temp: %dC\r\n", heart_rate, spo2, temp);
-        printf("Temp: %f F\r\n", temp_F); //print on Console
 
-        for (i = 100000; i > 0; i--)
-            ;        // lazy delay
+
+        sprintf(DataBuffer,"Temp: %f F\r\n", temp_F); //print on COM7 terminal
+        SendCharArray_A2(DataBuffer);
+        ReceivedChar=GetChar_A2();
+        SendCharArray_A2(&ReceivedChar);
+
+        __delay_cycles(12000*2500);  // Wait .5 second before next set of readings
+
     }
 }
