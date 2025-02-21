@@ -2,15 +2,9 @@
  * uart_routines2023.h
  *
  *  Created on: Jan 27, 2023
- *      Author: song
+ *      Author: Dr. Song
  */
-#include <msp.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <string.h>
-#include <math.h>
-
+#include "ECE230FinalProject.h"
 #include "csHFXT.h"
 
 void ConfigureUART_A2(void);
